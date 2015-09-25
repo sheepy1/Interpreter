@@ -1,0 +1,47 @@
+#lang racket
+;;空环境
+(define env0 '())
+
+;;对环境env进行扩展，加入（x . v）组成新的association list(键值对链表)
+(define ext-env
+  (lambda (x v env)
+    (cons `(,x . ,v) env)))
+
+;;取值。在环境env中查找x的值
+(define lookup
+  (lambda (x env)
+    (let ([p (assq x env)])
+      (cond [(not p) x]
+            [else (cdr p)]))))
+
+;;闭包的数据结构
+(struct Closure (f env))
+
+;;解释器的递归定义（接受表达式exp和环境env）
+;;共5种情况（变量，函数，调用，数字，算术表达式）
+(define interpret
+  (lambda (exp env)
+    (match exp
+      [(? symbol? x) (lookup x env)]
+      [(? number? x) x]
+      [`(lambda (,x) ,e)
+       (Closure exp env)]
+      [`(,e1 ,e2)
+       (let ([v1 (interpret e1 env)]
+             [v2 (interpret e2 env)])
+         (match v1
+           [(Closure `(lambda (,x) ,e) env1)
+            (interpret e (ext-env x v2 env1))]))]
+      [`(,op ,e1 ,e2)
+       (let ([v1 (interpret e1 env)]
+             [v2 (interpret e2 env)])
+         (match op
+           ['+ (+ v1 v2)]
+           ['- (- v1 v2)]
+           ['* (* v1 v2)]
+           ['/ (/ v1 v2)]))])))
+
+;;解释器的调用接口。封装interpret，把环境参数初始值设为env0
+(define interp
+  (lambda (exp)
+    (interpret exp env0)))
